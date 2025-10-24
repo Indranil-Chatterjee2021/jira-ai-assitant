@@ -49,7 +49,7 @@ jobs:
 
           echo "Review State: $REVIEW_STATE"
 
-          if [ "$REVIEW_STATE" == "changes_requested" ]; then
+          if [ "$REVIEW_STATE" == "changes_requested" ] || [ "$REVIEW_STATE" == "commented" ]; then
             echo "Changes requested. Updating labels for PR #$PR_NUMBER."
 
             # 1. DELETE/Remove PLEASE ADD REVIEWS label
