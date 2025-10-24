@@ -1,0 +1,94 @@
+name: PR State Machine Labeling (cURL)
+
+on:
+  # Triggers for initial label and code push
+  pull_request:
+    types: [opened, reopened, synchronize] # Added 'synchronize' for step 3
+
+  # Trigger for review submission
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  # Job 1: Apply initial label when PR is opened
+  apply_initial_label:
+    # Only runs when PR is opened/reopened, NOT when code is pushed ('synchronize')
+    if: github.event_name == 'pull_request' && (github.event.action == 'opened' || github.event.action == 'reopened')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Add 'PLEASE ADD REVIEWS' label to PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          curl -X POST \
+            -H "Authorization: token ${{ env.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/${{ github.repository }}/issues/${{ env.PR_NUMBER }}/labels \
+            -d '{"labels": ["PLEASE ADD REVIEWS"]}'
+
+  # Job 2: Manage labels based on Code Changes Requested or Commented review status
+  apply_review_label:
+    # Only runs when a pull_request_review event triggers the workflow
+    if: github.event_name == 'pull_request_review'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Check review state and update labels
+        run: |
+          REVIEW_STATE=$(jq -r '.review.state' "${GITHUB_EVENT_PATH}")
+          PR_NUMBER=$(jq -r '.pull_request.number' "${GITHUB_EVENT_PATH}")
+
+          # Condition modified to include 'commented' or 'changes_requested'
+          if [ "$REVIEW_STATE" == "changes_requested" ] || [ "$REVIEW_STATE" == "commented" ]; then
+            echo "Changes requested or commented. Updating labels for PR #$PR_NUMBER."
+
+            # 1. DELETE/Remove PLEASE ADD REVIEWS label
+            curl -X DELETE \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUMBER/labels/PLEASE%20ADD%20REVIEWS
+
+            # 2. POST/Add CODE CHANGES REQUESTED label
+            curl -X POST \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github+json" \
+              https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUMBER/labels \
+              -d '{"labels": ["CODE CHANGES REQUESTED"]}'
+          else
+            echo "Review state is $REVIEW_STATE. No label changes made."
+          fi
+
+  # Job 3: Apply re-review label when new code is pushed (synchronize)
+  apply_re_review_label:
+    # Only runs when code is pushed to the PR branch (synchronize)
+    if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Update labels for re-review
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          echo "Code synchronized. Updating labels for PR #${{ env.PR_NUMBER }}."
+          
+          # 1. DELETE/Remove CODE CHANGES REQUESTED label
+          curl -X DELETE \
+            -H "Authorization: token ${{ env.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/issues/${{ env.PR_NUMBER }}/labels/CODE%20CHANGES%20REQUESTED
+
+          # 2. POST/Add CHANGES ADDRESSED - PLEASE RE-REVIEW label
+          curl -X POST \
+            -H "Authorization: token ${{ env.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/${{ github.repository }}/issues/${{ env.PR_NUMBER }}/labels \
+            -d '{"labels": ["CHANGES ADDRESSED - PLEASE RE-REVIEW"]}'
