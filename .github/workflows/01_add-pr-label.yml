@@ -3,8 +3,6 @@ name: add-pr-label
 on:
   pull_request:
     types: [opened, edited, closed, reopened, synchronize, assigned, unassigned, labeled, unlabeled, review_requested, review_request_removed, ready_for_review, converted_to_draft]
-    branches:
-      - main
 
 jobs:
   label-pr:
@@ -13,29 +11,29 @@ jobs:
       issues: write
       pull-requests: write
     steps:
-      - name: Ensure 'Review Code' label exists with color
+      - name: Ensure 'PLEASE ADD REVIEWS' label exists with color
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Use a PATCH request to create the label if it doesn't exist, 
-          # or update its color if it does.
-          # Hex color 'a2ee14' is a bright green.
-          # The label name 'Review Code' is URL-encoded as 'Review%20Code' in the URL.
+          # or update its color and description if it does.
+          # Hex color '#0E8A16' is a darker green.
+          # The label name 'PLEASE ADD REVIEWS' is URL-encoded as 'PLEASE%20ADD%20REVIEWS' in the URL.
           curl -X PATCH \
-            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Authorization: token ${{ env.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/${{ github.repository }}/labels/Review%20Code \
-            -d '{"color": "a2ee14", "description": "This Pull Request requires code review."}'
+            https://api.github.com/repos/${{ github.repository }}/labels/PLEASE%20ADD%20REVIEWS \
+            -d '{"color": "#0E8A16", "description": "Ready to be reviewed."}'
 
-      - name: Add 'Review Code' label to current PR
+      - name: Add 'PLEASE ADD REVIEWS' label to current PR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          echo "Applying label to PR #$PR_NUMBER"
+          echo "Applying label to PR #${{ env.PR_NUMBER }}"
           # This POST call adds the label to the PR issue
           curl -X POST \
-            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Authorization: token ${{ env.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUMBER/labels \
-            -d '{"labels": ["Review Code"]}'
+            https://api.github.com/repos/${{ github.repository }}/issues/${{ env.PR_NUMBER }}/labels \
+            -d '{"labels": ["PLEASE ADD REVIEWS"]}'
