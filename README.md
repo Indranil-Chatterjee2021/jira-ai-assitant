@@ -76,3 +76,4 @@ jira-ai-rag/
 - **Backend**: Node.js, Express
 - **AI**: OpenAI, LangChain
 - **JIRA Integration**: JIRA API
+- **YAML**: YAML
